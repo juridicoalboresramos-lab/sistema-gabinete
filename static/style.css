@@ -1,0 +1,101 @@
+:root {
+  --brand: #0f4c81;
+  --brand-dark: #0a3256;
+  --light-bg: #f4f7fb;
+}
+body {
+  background: var(--light-bg);
+  color: #1f2937;
+}
+.bg-brand { background: linear-gradient(135deg, var(--brand-dark), var(--brand)); }
+.btn-brand {
+  background: linear-gradient(135deg, var(--brand-dark), var(--brand));
+  color: #fff;
+  border: none;
+}
+.btn-brand:hover { color: #fff; opacity: .95; }
+.hero-card {
+  background: linear-gradient(135deg, #0a3256, #0f4c81 60%, #14856f);
+  color: #fff;
+  border-radius: 2rem;
+  box-shadow: 0 15px 40px rgba(15, 76, 129, .22);
+}
+.glass-panel {
+  background: rgba(255,255,255,.14);
+  border: 1px solid rgba(255,255,255,.2);
+  border-radius: 1.5rem;
+  backdrop-filter: blur(8px);
+}
+.metric-box {
+  background: rgba(255,255,255,.12);
+  border-radius: 1rem;
+  padding: 1rem;
+}
+.metric-box span {
+  display: block;
+  font-size: .85rem;
+  opacity: .8;
+}
+.metric-box strong {
+  display: block;
+  font-size: 1.05rem;
+  margin-top: .35rem;
+}
+.step-badge {
+  display: inline-block;
+  background: #e9f1ff;
+  color: var(--brand);
+  font-weight: 700;
+  border-radius: 999px;
+  padding: .5rem .9rem;
+}
+.brand-logo {
+  width: 34px;
+  height: 34px;
+  object-fit: contain;
+  border-radius: .5rem;
+  background: rgba(255,255,255,.9);
+  padding: .2rem;
+}
+.logo-lg {
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
+  border-radius: 1rem;
+  background: rgba(255,255,255,.95);
+  padding: .35rem;
+}
+.info-chip {
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 1rem;
+  padding: 1rem;
+}
+.info-chip span {
+  display: block;
+  color: #6b7280;
+  font-size: .85rem;
+}
+.info-chip strong {
+  display: block;
+  font-size: 1.1rem;
+  margin-top: .35rem;
+}
+.table > :not(caption) > * > * {
+  padding: .95rem .9rem;
+}
+.progress {
+  height: 20px;
+  background: #e5e7eb;
+}
+.progress-bar {
+  background: linear-gradient(90deg, #0f4c81, #159e77);
+}
+.footer {
+  background: transparent;
+}
+@media print {
+  .navbar, .footer, .btn, form { display: none !important; }
+  body { background: #fff; }
+  .card { box-shadow: none !important; border: 1px solid #ddd !important; }
+}

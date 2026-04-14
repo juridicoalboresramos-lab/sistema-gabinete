@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+{% block title %}Direcciones{% endblock %}
+{% block content %}
+<div class="row g-4">
+  <div class="col-lg-4">
+    <div class="card border-0 shadow-sm rounded-4">
+      <div class="card-body p-4">
+        <h1 class="h3 fw-bold mb-3">Nueva dirección</h1>
+        <form method="post" class="row g-3">
+          <div class="col-12">
+            <label class="form-label">Nombre</label>
+            <input name="name" class="form-control rounded-3" required>
+          </div>
+          <div class="col-12">
+            <label class="form-label">Responsable</label>
+            <input name="responsible_name" class="form-control rounded-3">
+          </div>
+          <div class="col-12">
+            <label class="form-label">Correo</label>
+            <input name="email" type="email" class="form-control rounded-3">
+          </div>
+          <div class="col-12"><button class="btn btn-brand rounded-pill px-4">Guardar dirección</button></div>
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-8">
+    <div class="card border-0 shadow-sm rounded-4">
+      <div class="card-body p-0">
+        <div class="p-4"><h2 class="h4 fw-bold mb-0">Direcciones registradas</h2></div>
+        <div class="table-responsive">
+          <table class="table mb-0 align-middle">
+            <thead class="table-light">
+              <tr><th>Nombre</th><th>Responsable</th><th>Correo</th><th>Creada</th></tr>
+            </thead>
+            <tbody>
+              {% for direction in directions %}
+              <tr>
+                <td>{{ direction.name }}</td>
+                <td>{{ direction.responsible_name or '-' }}</td>
+                <td>{{ direction.email or '-' }}</td>
+                <td>{{ direction.created_at }}</td>
+              </tr>
+              {% else %}
+              <tr><td colspan="4" class="text-center py-4 text-muted">Sin direcciones.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

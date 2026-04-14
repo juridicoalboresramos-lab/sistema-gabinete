@@ -1,0 +1,125 @@
+{% extends 'base.html' %}
+{% block title %}Mi panel{% endblock %}
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+  <div>
+    <h1 class="h2 fw-bold mb-1">Mi panel de dirección</h1>
+    <p class="text-muted mb-0">Consulta tus encomiendas, avances y vencimientos.</p>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  {% set items = [
+    ('Total', counts.total, 'bi-grid'),
+    ('Pendientes', counts.pending, 'bi-hourglass-split'),
+    ('En proceso', counts.in_progress, 'bi-activity'),
+    ('Concluidas', counts.done, 'bi-check2-circle'),
+    ('Vencidas', counts.overdue, 'bi-exclamation-triangle')
+  ] %}
+  {% for title, value, icon in items %}
+  <div class="col-6 col-lg">
+    <div class="card border-0 shadow-sm rounded-4 h-100">
+      <div class="card-body p-4">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <div class="text-muted small">{{ title }}</div>
+            <div class="display-6 fw-bold mt-2">{{ value }}</div>
+          </div>
+          <i class="bi {{ icon }} fs-3 text-primary"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="row g-4 mb-4">
+  <div class="col-lg-7">
+    <div class="card border-0 shadow-sm rounded-4 h-100">
+      <div class="card-body p-4">
+        <h2 class="h4 fw-bold mb-3">Mis avances</h2>
+        <canvas id="progressChart" height="120"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-5">
+    <div class="card border-0 shadow-sm rounded-4 h-100">
+      <div class="card-body p-4">
+        <h2 class="h4 fw-bold mb-3">Mis estatus</h2>
+        <canvas id="statusChart" height="220"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm rounded-4">
+  <div class="card-body p-0">
+    <div class="p-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <h2 class="h4 fw-bold mb-0">Mis actividades</h2>
+      <span class="text-muted small">Solo puedes ver y actualizar lo que te corresponde</span>
+    </div>
+    <div class="table-responsive">
+      <table class="table align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Folio</th>
+            <th>Actividad</th>
+            <th>Límite</th>
+            <th>Días</th>
+            <th>Avance</th>
+            <th>Estatus</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for activity in activities %}
+          <tr>
+            <td>{{ activity.folio }}</td>
+            <td>
+              <div class="fw-semibold">{{ activity.title }}</div>
+              <div class="small text-muted">{{ activity.priority }}</div>
+            </td>
+            <td>{{ activity.due_date }}</td>
+            <td>{{ days_remaining(activity.due_date) }}</td>
+            <td style="min-width:150px;">
+              <div class="progress rounded-pill">
+                <div class="progress-bar" style="width: {{ activity.progress }}%">{{ activity.progress }}%</div>
+              </div>
+            </td>
+            <td><span class="badge text-bg-{{ status_color(activity) }}">{{ activity.status }}</span></td>
+            <td><a class="btn btn-sm btn-outline-primary rounded-pill" href="{{ url_for('activity_detail', activity_id=activity.id) }}">Actualizar</a></td>
+          </tr>
+          {% else %}
+          <tr><td colspan="7" class="text-center py-4 text-muted">No tienes actividades asignadas.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+fetch("{{ url_for('dashboard_data') }}")
+  .then(res => res.json())
+  .then(data => {
+    new Chart(document.getElementById('progressChart'), {
+      type: 'bar',
+      data: {
+        labels: data.progress.map(i => i.label),
+        datasets: [{ label: 'Avance %', data: data.progress.map(i => i.value) }]
+      },
+      options: { responsive: true, scales: { y: { beginAtZero: true, max: 100 } } }
+    });
+
+    new Chart(document.getElementById('statusChart'), {
+      type: 'pie',
+      data: {
+        labels: data.statuses.map(i => i.label),
+        datasets: [{ data: data.statuses.map(i => i.value) }]
+      },
+      options: { responsive: true }
+    });
+  });
+</script>
+{% endblock %}

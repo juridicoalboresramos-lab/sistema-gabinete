@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+{% block title %}Reportes{% endblock %}
+{% block content %}
+<div class="card border-0 shadow-sm rounded-4">
+  <div class="card-body p-0">
+    <div class="p-4 d-flex justify-content-between align-items-center gap-2 flex-wrap">
+      <div>
+        <h1 class="h3 fw-bold mb-1">Reporte general</h1>
+        <p class="text-muted mb-0">Concentrado de actividades y estado de cumplimiento.</p>
+      </div>
+      <button class="btn btn-outline-primary rounded-pill px-4" onclick="window.print()">Imprimir / PDF</button>
+    </div>
+    <div class="table-responsive">
+      <table class="table mb-0 align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Folio</th>
+            <th>Título</th>
+            <th>Dirección</th>
+            <th>Límite</th>
+            <th>Días</th>
+            <th>Avance</th>
+            <th>Estatus</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+          <tr>
+            <td>{{ row.folio }}</td>
+            <td>{{ row.title }}</td>
+            <td>{{ row.direction_name }}</td>
+            <td>{{ row.due_date }}</td>
+            <td>{{ days_remaining(row.due_date) }}</td>
+            <td>{{ row.progress }}%</td>
+            <td><span class="badge text-bg-{{ status_color(row) }}">{{ row.status }}</span></td>
+          </tr>
+          {% else %}
+          <tr><td colspan="7" class="text-center py-4 text-muted">Sin registros.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

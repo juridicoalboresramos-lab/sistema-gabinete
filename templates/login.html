@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% block title %}Login{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-6 col-lg-4">
+    <div class="card shadow-lg border-0 rounded-4 overflow-hidden">
+      <div class="card-header bg-brand text-white p-4 border-0">
+        <h1 class="h3 mb-1 fw-bold">Acceso al sistema</h1>
+        <p class="mb-0 opacity-75">Coordinación de Gabinete</p>
+      </div>
+      <div class="card-body p-4">
+        <form method="post">
+          <div class="mb-3">
+            <label class="form-label">Usuario</label>
+            <input type="text" name="username" class="form-control form-control-lg rounded-3" required>
+          </div>
+          <div class="mb-4">
+            <label class="form-label">Contraseña</label>
+            <input type="password" name="password" class="form-control form-control-lg rounded-3" required>
+          </div>
+          <button class="btn btn-brand w-100 btn-lg rounded-3">Entrar</button>
+        </form>
+        <div class="mt-4 small text-muted">
+          <div><strong>Admin:</strong> admin / admin123</div>
+          <div><strong>Servicios:</strong> servicios / servicios123</div>
+          <div><strong>Obras:</strong> obras / obras123</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

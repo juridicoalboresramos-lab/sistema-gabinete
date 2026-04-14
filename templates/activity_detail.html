@@ -1,0 +1,99 @@
+{% extends 'base.html' %}
+{% block title %}Detalle de actividad{% endblock %}
+{% block content %}
+<div class="row g-4">
+  <div class="col-lg-7">
+    <div class="card border-0 shadow-sm rounded-4 mb-4">
+      <div class="card-body p-4">
+        <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+          <div>
+            <div class="text-muted small">{{ activity.folio }}</div>
+            <h1 class="h2 fw-bold mb-1">{{ activity.title }}</h1>
+            <div class="text-muted">{{ activity.direction_name }}</div>
+          </div>
+          <span class="badge text-bg-{{ status_color(activity) }} fs-6">{{ activity.status }}</span>
+        </div>
+        <p class="mt-3 mb-4">{{ activity.description or 'Sin descripción.' }}</p>
+        <div class="row g-3">
+          <div class="col-md-4"><div class="info-chip"><span>Límite</span><strong>{{ activity.due_date }}</strong></div></div>
+          <div class="col-md-4"><div class="info-chip"><span>Días restantes</span><strong>{{ days_remaining(activity.due_date) }}</strong></div></div>
+          <div class="col-md-4"><div class="info-chip"><span>Prioridad</span><strong>{{ activity.priority }}</strong></div></div>
+        </div>
+        <div class="mt-4">
+          <label class="form-label fw-semibold">Avance general</label>
+          <div class="progress rounded-pill" style="height: 24px;">
+            <div class="progress-bar" style="width: {{ activity.progress }}%">{{ activity.progress }}%</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm rounded-4 mb-4">
+      <div class="card-body p-4">
+        <h2 class="h4 fw-bold mb-3">Actualizar actividad</h2>
+        <form method="post" enctype="multipart/form-data" class="row g-3">
+          <div class="col-md-4">
+            <label class="form-label">Nuevo avance (%)</label>
+            <input type="number" name="progress" min="0" max="100" value="{{ activity.progress }}" class="form-control rounded-3" required>
+          </div>
+          <div class="col-md-8">
+            <label class="form-label">Archivo de evidencia</label>
+            <input type="file" name="file" class="form-control rounded-3">
+          </div>
+          <div class="col-12">
+            <label class="form-label">Comentario</label>
+            <textarea name="comment" rows="4" class="form-control rounded-3" placeholder="Describe el avance realizado..."></textarea>
+          </div>
+          <div class="col-12">
+            <button class="btn btn-brand rounded-pill px-4">Guardar actualización</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm rounded-4">
+      <div class="card-body p-4">
+        <h2 class="h4 fw-bold mb-3">Historial de avances</h2>
+        {% for up in updates %}
+        <div class="timeline-item pb-3 mb-3 border-bottom">
+          <div class="d-flex justify-content-between gap-3 flex-wrap">
+            <strong>{{ up.full_name }}</strong>
+            <span class="small text-muted">{{ up.created_at }}</span>
+          </div>
+          <div class="small text-primary fw-semibold">Avance reportado: {{ up.progress }}%</div>
+          <p class="mb-0 mt-2">{{ up.comment }}</p>
+        </div>
+        {% else %}
+        <p class="text-muted mb-0">Aún no hay avances registrados.</p>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-5">
+    <div class="card border-0 shadow-sm rounded-4 mb-4">
+      <div class="card-body p-4">
+        <h2 class="h4 fw-bold mb-3">Evidencias</h2>
+        {% for file in files %}
+        <div class="d-flex justify-content-between align-items-center gap-2 py-2 border-bottom">
+          <div>
+            <div class="fw-semibold">{{ file.original_name }}</div>
+            <div class="small text-muted">{{ file.full_name }} · {{ file.created_at }}</div>
+          </div>
+          <a href="{{ url_for('uploaded_file', filename=file.stored_name) }}" class="btn btn-sm btn-outline-primary rounded-pill" target="_blank">Abrir</a>
+        </div>
+        {% else %}
+        <p class="text-muted mb-0">No hay archivos cargados.</p>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm rounded-4">
+      <div class="card-body p-4">
+        <h2 class="h4 fw-bold mb-3">Observaciones generales</h2>
+        <p class="mb-0">{{ activity.observations or 'Sin observaciones registradas.' }}</p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

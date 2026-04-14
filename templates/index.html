@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+{% block title %}Inicio | Coordinación de Gabinete{% endblock %}
+{% block content %}
+<section class="hero-card p-4 p-lg-5 mb-4">
+  <div class="row g-4 align-items-center">
+    <div class="col-lg-7">
+      <span class="badge rounded-pill text-bg-light text-primary px-3 py-2 mb-3">H. Ayuntamiento de Bahía de Banderas</span>
+      <h1 class="display-5 fw-bold mb-3">Sistema de Seguimiento Institucional</h1>
+      <p class="lead opacity-90">Controla actividades, fechas límite, avances, evidencias y cumplimiento de cada dirección desde una sola plataforma.</p>
+      <div class="d-flex flex-wrap gap-2 mt-4">
+        <a href="{{ url_for('login') }}" class="btn btn-light btn-lg rounded-pill px-4">Entrar al sistema</a>
+        <a href="#flujo" class="btn btn-outline-light btn-lg rounded-pill px-4">Ver flujo</a>
+      </div>
+    </div>
+    <div class="col-lg-5">
+      <div class="glass-panel p-4">
+        <div class="d-flex align-items-center gap-3 mb-3">
+          <img src="{{ url_for('static', filename='logo_bahia.png') }}" class="logo-lg" alt="Bahía de Banderas">
+          <img src="{{ url_for('static', filename='logo_escudo.png') }}" class="logo-lg" alt="Escudo">
+        </div>
+        <div class="row g-3">
+          <div class="col-6"><div class="metric-box"><span>Acceso</span><strong>PC + Celular</strong></div></div>
+          <div class="col-6"><div class="metric-box"><span>Seguridad</span><strong>Por usuario</strong></div></div>
+          <div class="col-6"><div class="metric-box"><span>Control</span><strong>Vencimientos</strong></div></div>
+          <div class="col-6"><div class="metric-box"><span>Seguimiento</span><strong>Tiempo real</strong></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="flujo" class="row g-3">
+  {% set pasos = [
+    ('1', 'Asignación', 'Gabinete registra la encomienda y la asigna a la dirección correspondiente.'),
+    ('2', 'Plazo', 'El sistema calcula fecha límite, días restantes y semáforo de vencimiento.'),
+    ('3', 'Avance', 'La dirección actualiza progreso, comentarios y porcentaje de cumplimiento.'),
+    ('4', 'Evidencia', 'Se suben oficios, PDFs, fotografías u otros archivos de respaldo.'),
+    ('5', 'Monitoreo', 'Gabinete revisa panel, gráficas, pendientes, vencidas y conclusiones.'),
+    ('6', 'Finalización', 'Al llegar a 100%, la actividad queda concluida y registrada en historial.')
+  ] %}
+  {% for numero, titulo, texto in pasos %}
+  <div class="col-12 col-md-6 col-xl-4">
+    <div class="card h-100 shadow-sm border-0 rounded-4">
+      <div class="card-body p-4">
+        <div class="step-badge mb-3">Paso {{ numero }}</div>
+        <h3 class="h4 fw-bold">{{ titulo }}</h3>
+        <p class="text-muted mb-0">{{ texto }}</p>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</section>
+{% endblock %}

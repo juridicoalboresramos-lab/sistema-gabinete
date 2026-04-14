@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+{% block title %}Usuarios{% endblock %}
+{% block content %}
+<div class="row g-4">
+  <div class="col-lg-4">
+    <div class="card border-0 shadow-sm rounded-4">
+      <div class="card-body p-4">
+        <h1 class="h3 fw-bold mb-3">Crear usuario</h1>
+        <form method="post" class="row g-3">
+          <div class="col-12">
+            <label class="form-label">Nombre completo</label>
+            <input name="full_name" class="form-control rounded-3" required>
+          </div>
+          <div class="col-12">
+            <label class="form-label">Usuario</label>
+            <input name="username" class="form-control rounded-3" required>
+          </div>
+          <div class="col-12">
+            <label class="form-label">Contraseña</label>
+            <input name="password" class="form-control rounded-3" required>
+          </div>
+          <div class="col-12">
+            <label class="form-label">Rol</label>
+            <select name="role" class="form-select rounded-3">
+              <option value="direction">Dirección</option>
+              <option value="admin">Administrador</option>
+            </select>
+          </div>
+          <div class="col-12">
+            <label class="form-label">Dirección</label>
+            <select name="direction_id" class="form-select rounded-3">
+              <option value="">Sin dirección</option>
+              {% for direction in directions %}
+              <option value="{{ direction.id }}">{{ direction.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-12"><button class="btn btn-brand rounded-pill px-4">Guardar usuario</button></div>
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-8">
+    <div class="card border-0 shadow-sm rounded-4">
+      <div class="card-body p-0">
+        <div class="p-4"><h2 class="h4 fw-bold mb-0">Usuarios registrados</h2></div>
+        <div class="table-responsive">
+          <table class="table mb-0 align-middle">
+            <thead class="table-light">
+              <tr><th>Nombre</th><th>Usuario</th><th>Rol</th><th>Dirección</th><th>Activo</th></tr>
+            </thead>
+            <tbody>
+              {% for user in users %}
+              <tr>
+                <td>{{ user.full_name }}</td>
+                <td>{{ user.username }}</td>
+                <td>{{ user.role }}</td>
+                <td>{{ user.direction_name or '-' }}</td>
+                <td>{{ 'Sí' if user.active else 'No' }}</td>
+              </tr>
+              {% else %}
+              <tr><td colspan="5" class="text-center py-4 text-muted">Sin usuarios.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

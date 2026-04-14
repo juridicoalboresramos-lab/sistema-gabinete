@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+{% block title %}Nueva actividad{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-xl-9">
+    <div class="card border-0 shadow-sm rounded-4">
+      <div class="card-body p-4 p-lg-5">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+          <div>
+            <h1 class="h2 fw-bold mb-1">Registrar nueva actividad</h1>
+            <p class="text-muted mb-0">Asigna una encomienda a una dirección y define su vencimiento.</p>
+          </div>
+        </div>
+        <form method="post" class="row g-3">
+          <div class="col-md-4">
+            <label class="form-label">Folio</label>
+            <input name="folio" class="form-control rounded-3" required>
+          </div>
+          <div class="col-md-8">
+            <label class="form-label">Título</label>
+            <input name="title" class="form-control rounded-3" required>
+          </div>
+          <div class="col-12">
+            <label class="form-label">Descripción</label>
+            <textarea name="description" class="form-control rounded-3" rows="3"></textarea>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Dirección</label>
+            <select name="direction_id" class="form-select rounded-3" required>
+              <option value="">Selecciona...</option>
+              {% for direction in directions %}
+              <option value="{{ direction.id }}">{{ direction.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Fecha de asignación</label>
+            <input type="date" name="assigned_date" class="form-control rounded-3" required>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Fecha límite</label>
+            <input type="date" name="due_date" class="form-control rounded-3" required>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Prioridad</label>
+            <select name="priority" class="form-select rounded-3">
+              <option>Alta</option>
+              <option selected>Media</option>
+              <option>Baja</option>
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Avance inicial (%)</label>
+            <input type="number" min="0" max="100" name="progress" value="0" class="form-control rounded-3">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Observaciones</label>
+            <input name="observations" class="form-control rounded-3">
+          </div>
+          <div class="col-12 d-flex gap-2 pt-2">
+            <button class="btn btn-brand rounded-pill px-4">Guardar actividad</button>
+            <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary rounded-pill px-4">Cancelar</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
