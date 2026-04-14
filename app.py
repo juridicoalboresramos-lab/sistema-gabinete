@@ -773,8 +773,11 @@ def forbidden(_):
 def not_found(_):
     return render_template("error.html", code=404, message="No encontramos lo que buscas."), 404
 
+import os
+
 
 if __name__ == "__main__":
     os.makedirs(UPLOAD_FOLDER, exist_ok=True)
     init_db()
-    app.run(debug=True, host="0.0.0.0", port=5000)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
