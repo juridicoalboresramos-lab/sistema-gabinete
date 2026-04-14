@@ -774,15 +774,20 @@ def not_found(_):
     return render_template("error.html", code=404, message="No encontramos lo que buscas."), 404
 
 import os
+import sqlite3
 
 
 if __name__ == "__main__":
     os.makedirs(UPLOAD_FOLDER, exist_ok=True)
     init_db()
 
-    # 👇 CREAR USUARIO ADMIN SI NO EXISTE
-    conn = get_db_connection()
-    user = conn.execute("SELECT * FROM users WHERE username = ?", ("admin",)).fetchone()
+    conn = sqlite3.connect("database.db")
+    conn.row_factory = sqlite3.Row
+
+    user = conn.execute(
+        "SELECT * FROM users WHERE username = ?",
+        ("admin",)
+    ).fetchone()
 
     if not user:
         conn.execute(
@@ -793,4 +798,6 @@ if __name__ == "__main__":
 
     conn.close()
 
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
     app.run(debug=True, host="0.0.0.0", port=5000)
