@@ -779,5 +779,18 @@ import os
 if __name__ == "__main__":
     os.makedirs(UPLOAD_FOLDER, exist_ok=True)
     init_db()
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+
+    # 👇 CREAR USUARIO ADMIN SI NO EXISTE
+    conn = get_db_connection()
+    user = conn.execute("SELECT * FROM users WHERE username = ?", ("admin",)).fetchone()
+
+    if not user:
+        conn.execute(
+            "INSERT INTO users (username, password, role) VALUES (?, ?, ?)",
+            ("admin", "admin123", "admin")
+        )
+        conn.commit()
+
+    conn.close()
+
+    app.run(debug=True, host="0.0.0.0", port=5000)
