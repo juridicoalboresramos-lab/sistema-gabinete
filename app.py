@@ -107,6 +107,20 @@ def init_db():
             FOREIGN KEY (activity_id) REFERENCES activities(id) ON DELETE CASCADE,
             FOREIGN KEY (user_id) REFERENCES users(id)
         );
+
+        CREATE TABLE IF NOT EXISTS messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sender_id INTEGER NOT NULL,
+            recipient_id INTEGER NOT NULL,
+            subject TEXT NOT NULL,
+            body TEXT NOT NULL,
+            activity_id INTEGER,
+            is_read INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY (sender_id) REFERENCES users(id),
+            FOREIGN KEY (recipient_id) REFERENCES users(id),
+            FOREIGN KEY (activity_id) REFERENCES activities(id) ON DELETE SET NULL
+        );
         """
     )
 
@@ -358,14 +372,26 @@ def get_dashboard_counts(direction_id=None):
     }
 
 
+
 @app.context_processor
 def inject_globals():
+    unread = 0
+    if session.get("user_id"):
+        try:
+            conn = get_db()
+            unread = conn.execute(
+                "SELECT COUNT(*) AS total FROM messages WHERE recipient_id = ? AND is_read = 0",
+                (session["user_id"],),
+            ).fetchone()["total"]
+            conn.close()
+        except Exception:
+            unread = 0
+
     return {
         "session": session,
         "current_year": datetime.now().year,
+        "unread_messages": unread,
     }
-
-
 # -------------------------
 # Routes
 # -------------------------
@@ -650,30 +676,6 @@ def users():
     return render_template("users.html", users=users_rows, directions=directions)
 
 
-
-@app.route("/users/delete/<int:user_id>", methods=["POST"])
-@login_required
-@admin_required
-def delete_user(user_id):
-    if user_id == session.get("user_id"):
-        flash("No puedes eliminar tu propio usuario.", "danger")
-        return redirect(url_for("users"))
-
-    conn = get_db()
-    user = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
-    if not user:
-        conn.close()
-        flash("El usuario no existe.", "warning")
-        return redirect(url_for("users"))
-
-    conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
-    conn.commit()
-    conn.close()
-
-    flash("Usuario eliminado correctamente.", "success")
-    return redirect(url_for("users"))
-
-
 @app.route("/directions", methods=["GET", "POST"])
 @login_required
 @admin_required
@@ -700,6 +702,145 @@ def directions():
     directions_rows = conn.execute("SELECT * FROM directions ORDER BY id DESC").fetchall()
     conn.close()
     return render_template("directions.html", directions=directions_rows)
+
+
+
+
+@app.route("/messages")
+@login_required
+def messages():
+    conn = get_db()
+    rows = conn.execute(
+        """
+        SELECT m.*,
+               s.full_name AS sender_name,
+               r.full_name AS recipient_name,
+               a.folio AS activity_folio,
+               a.title AS activity_title
+        FROM messages m
+        JOIN users s ON s.id = m.sender_id
+        JOIN users r ON r.id = m.recipient_id
+        LEFT JOIN activities a ON a.id = m.activity_id
+        WHERE m.sender_id = ? OR m.recipient_id = ?
+        ORDER BY m.id DESC
+        """,
+        (session["user_id"], session["user_id"]),
+    ).fetchall()
+    conn.close()
+    return render_template("messages.html", rows=rows)
+
+
+@app.route("/messages/new", methods=["GET", "POST"])
+@login_required
+def message_new():
+    conn = get_db()
+
+    if session.get("role") == "admin":
+        recipients = conn.execute(
+            """
+            SELECT id, full_name, username
+            FROM users
+            WHERE active = 1 AND id != ?
+            ORDER BY full_name
+            """,
+            (session["user_id"],),
+        ).fetchall()
+
+        activities = conn.execute(
+            """
+            SELECT id, folio, title
+            FROM activities
+            ORDER BY id DESC
+            """
+        ).fetchall()
+    else:
+        recipients = conn.execute(
+            """
+            SELECT id, full_name, username
+            FROM users
+            WHERE active = 1 AND role = 'admin'
+            ORDER BY full_name
+            """
+        ).fetchall()
+
+        activities = conn.execute(
+            """
+            SELECT id, folio, title
+            FROM activities
+            WHERE direction_id = ?
+            ORDER BY id DESC
+            """,
+            (session.get("direction_id"),),
+        ).fetchall()
+
+    if request.method == "POST":
+        recipient_id = request.form.get("recipient_id")
+        subject = request.form.get("subject", "").strip()
+        body = request.form.get("body", "").strip()
+        activity_id = request.form.get("activity_id") or None
+
+        if not recipient_id or not subject or not body:
+            flash("Completa destinatario, asunto y mensaje.", "danger")
+            conn.close()
+            return render_template("message_new.html", recipients=recipients, activities=activities)
+
+        conn.execute(
+            """
+            INSERT INTO messages (sender_id, recipient_id, subject, body, activity_id, is_read, created_at)
+            VALUES (?, ?, ?, ?, ?, 0, ?)
+            """,
+            (
+                session["user_id"],
+                int(recipient_id),
+                subject,
+                body,
+                int(activity_id) if activity_id else None,
+                now_iso(),
+            ),
+        )
+        conn.commit()
+        conn.close()
+        flash("Mensaje enviado correctamente.", "success")
+        return redirect(url_for("messages"))
+
+    conn.close()
+    return render_template("message_new.html", recipients=recipients, activities=activities)
+
+
+@app.route("/messages/<int:message_id>")
+@login_required
+def message_detail(message_id):
+    conn = get_db()
+    row = conn.execute(
+        """
+        SELECT m.*,
+               s.full_name AS sender_name,
+               r.full_name AS recipient_name,
+               a.folio AS activity_folio,
+               a.title AS activity_title
+        FROM messages m
+        JOIN users s ON s.id = m.sender_id
+        JOIN users r ON r.id = m.recipient_id
+        LEFT JOIN activities a ON a.id = m.activity_id
+        WHERE m.id = ?
+        """,
+        (message_id,),
+    ).fetchone()
+
+    if not row:
+        conn.close()
+        abort(404)
+
+    if row["sender_id"] != session["user_id"] and row["recipient_id"] != session["user_id"]:
+        conn.close()
+        abort(403)
+
+    if row["recipient_id"] == session["user_id"] and row["is_read"] == 0:
+        conn.execute("UPDATE messages SET is_read = 1 WHERE id = ?", (message_id,))
+        conn.commit()
+
+    conn.close()
+    return render_template("message_detail.html", row=row)
 
 
 @app.route("/reports")
@@ -797,29 +938,9 @@ def forbidden(_):
 def not_found(_):
     return render_template("error.html", code=404, message="No encontramos lo que buscas."), 404
 
-import os
-import sqlite3
-
 if __name__ == "__main__":
     os.makedirs(UPLOAD_FOLDER, exist_ok=True)
     init_db()
-
-    conn = sqlite3.connect("database.db")
-    conn.row_factory = sqlite3.Row
-
-    user = conn.execute(
-        "SELECT * FROM users WHERE username = ?",
-        ("admin",)
-    ).fetchone()
-
-    if not user:
-        conn.execute(
-            "INSERT INTO users (username, password, role) VALUES (?, ?, ?)",
-            ("admin", "admin123", "admin")
-        )
-        conn.commit()
-
-    conn.close()
 
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)

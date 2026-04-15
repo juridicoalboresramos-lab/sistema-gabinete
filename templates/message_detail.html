@@ -1,58 +1,29 @@
 {% extends 'base.html' %}
 {% block title %}Detalle de mensaje{% endblock %}
 {% block content %}
-<div class="row g-4">
-  <div class="col-lg-7">
-    <div class="card border-0 shadow-sm rounded-4 mb-4">
-      <div class="card-body p-4">
-        <h1 class="h3 fw-bold mb-3">{{ message.subject }}</h1>
-        <div class="row g-3 mb-4">
-          <div class="col-md-6"><div class="info-chip"><span>De</span><strong>{{ message.sender_name }}</strong></div></div>
-          <div class="col-md-6"><div class="info-chip"><span>Para</span><strong>{{ message.recipient_name }}</strong></div></div>
-          <div class="col-md-6"><div class="info-chip"><span>Fecha</span><strong>{{ message.created_at }}</strong></div></div>
-          <div class="col-md-6"><div class="info-chip"><span>Actividad ligada</span><strong>{% if message.activity_folio %}{{ message.activity_folio }} - {{ message.activity_title }}{% else %}Sin actividad ligada{% endif %}</strong></div></div>
-        </div>
-        <div class="p-3 rounded-4 bg-light border">
-          {{ message.body }}
-        </div>
-      </div>
-    </div>
-
+<div class="row justify-content-center">
+  <div class="col-xl-9">
     <div class="card border-0 shadow-sm rounded-4">
-      <div class="card-body p-4">
-        <h2 class="h4 fw-bold mb-3">Responder</h2>
-        <form method="post" enctype="multipart/form-data" class="row g-3">
-          <div class="col-12">
-            <label class="form-label">Respuesta</label>
-            <textarea name="body" rows="5" class="form-control rounded-3" required></textarea>
-          </div>
-          <div class="col-12">
-            <label class="form-label">Adjunto (opcional)</label>
-            <input type="file" name="file" class="form-control rounded-3">
-          </div>
-          <div class="col-12">
-            <button class="btn btn-brand rounded-pill px-4">Enviar respuesta</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  </div>
-
-  <div class="col-lg-5">
-    <div class="card border-0 shadow-sm rounded-4">
-      <div class="card-body p-4">
-        <h2 class="h4 fw-bold mb-3">Adjuntos</h2>
-        {% for file in attachments %}
-        <div class="d-flex justify-content-between align-items-center gap-2 py-2 border-bottom">
+      <div class="card-body p-4 p-lg-5">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
           <div>
-            <div class="fw-semibold">{{ file.original_name }}</div>
-            <div class="small text-muted">{{ file.created_at }}</div>
+            <h1 class="h3 fw-bold mb-1">{{ row.subject }}</h1>
+            <div class="text-muted small">
+              De: {{ row.sender_name }} · Para: {{ row.recipient_name }}
+            </div>
           </div>
-          <a href="{{ url_for('uploaded_file', filename=file.stored_name) }}" class="btn btn-sm btn-outline-primary rounded-pill" target="_blank">Abrir</a>
+          <a href="{{ url_for('messages') }}" class="btn btn-outline-secondary rounded-pill">Volver</a>
         </div>
-        {% else %}
-        <p class="text-muted mb-0">No hay adjuntos en este mensaje.</p>
-        {% endfor %}
+
+        {% if row.activity_folio %}
+        <div class="alert alert-light border rounded-4">
+          <strong>Actividad ligada:</strong> {{ row.activity_folio }} - {{ row.activity_title }}
+        </div>
+        {% endif %}
+
+        <div class="mb-3 text-muted small">Enviado: {{ row.created_at }}</div>
+
+        <div class="p-4 bg-light rounded-4" style="white-space: pre-wrap;">{{ row.body }}</div>
       </div>
     </div>
   </div>

@@ -1,72 +1,56 @@
 {% extends 'base.html' %}
 {% block title %}Mensajes{% endblock %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
-  <div>
-    <h1 class="h3 fw-bold mb-1">Mensajería interna</h1>
-    <p class="text-muted mb-0">Comunicación institucional entre gabinete y direcciones.</p>
-  </div>
-  <a href="{{ url_for('message_new') }}" class="btn btn-brand rounded-pill px-4">Nuevo mensaje</a>
-</div>
-
-<div class="row g-4">
-  <div class="col-lg-6">
-    <div class="card border-0 shadow-sm rounded-4 h-100">
-      <div class="card-body p-0">
-        <div class="p-4"><h2 class="h4 fw-bold mb-0">Recibidos</h2></div>
-        <div class="table-responsive">
-          <table class="table mb-0 align-middle">
-            <thead class="table-light">
-              <tr><th>Asunto</th><th>De</th><th>Fecha</th><th></th></tr>
-            </thead>
-            <tbody>
-              {% for row in inbox %}
-              <tr class="{% if not row.is_read %}table-warning{% endif %}">
-                <td>
-                  <div class="fw-semibold">{{ row.subject }}</div>
-                  <div class="small text-muted">{{ row.activity_folio or 'Sin actividad ligada' }}</div>
-                </td>
-                <td>{{ row.sender_name }}</td>
-                <td>{{ row.created_at }}</td>
-                <td><a href="{{ url_for('message_detail', message_id=row.id) }}" class="btn btn-sm btn-outline-primary rounded-pill">Abrir</a></td>
-              </tr>
-              {% else %}
-              <tr><td colspan="4" class="text-center py-4 text-muted">No tienes mensajes recibidos.</td></tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
+<div class="card border-0 shadow-sm rounded-4">
+  <div class="card-body p-0">
+    <div class="p-4 d-flex justify-content-between align-items-center gap-2 flex-wrap">
+      <div>
+        <h1 class="h3 fw-bold mb-1">Mensajes</h1>
+        <p class="text-muted mb-0">Bandeja de comunicaciones internas.</p>
       </div>
+      <a href="{{ url_for('message_new') }}" class="btn btn-brand rounded-pill px-4">Redactar mensaje</a>
     </div>
-  </div>
-
-  <div class="col-lg-6">
-    <div class="card border-0 shadow-sm rounded-4 h-100">
-      <div class="card-body p-0">
-        <div class="p-4"><h2 class="h4 fw-bold mb-0">Enviados</h2></div>
-        <div class="table-responsive">
-          <table class="table mb-0 align-middle">
-            <thead class="table-light">
-              <tr><th>Asunto</th><th>Para</th><th>Fecha</th><th></th></tr>
-            </thead>
-            <tbody>
-              {% for row in sent %}
-              <tr>
-                <td>
-                  <div class="fw-semibold">{{ row.subject }}</div>
-                  <div class="small text-muted">{{ row.activity_folio or 'Sin actividad ligada' }}</div>
-                </td>
-                <td>{{ row.recipient_name }}</td>
-                <td>{{ row.created_at }}</td>
-                <td><a href="{{ url_for('message_detail', message_id=row.id) }}" class="btn btn-sm btn-outline-secondary rounded-pill">Ver</a></td>
-              </tr>
+    <div class="table-responsive">
+      <table class="table mb-0 align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Asunto</th>
+            <th>Remitente</th>
+            <th>Destinatario</th>
+            <th>Actividad</th>
+            <th>Fecha</th>
+            <th>Estatus</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+          <tr>
+            <td>{{ row.subject }}</td>
+            <td>{{ row.sender_name }}</td>
+            <td>{{ row.recipient_name }}</td>
+            <td>
+              {% if row.activity_folio %}
+                {{ row.activity_folio }} - {{ row.activity_title }}
               {% else %}
-              <tr><td colspan="4" class="text-center py-4 text-muted">No has enviado mensajes.</td></tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      </div>
+                -
+              {% endif %}
+            </td>
+            <td>{{ row.created_at }}</td>
+            <td>
+              {% if row.recipient_id == session.user_id and row.is_read == 0 %}
+                <span class="badge text-bg-danger">No leído</span>
+              {% else %}
+                <span class="badge text-bg-success">Leído</span>
+              {% endif %}
+            </td>
+            <td><a href="{{ url_for('message_detail', message_id=row.id) }}" class="btn btn-sm btn-outline-primary rounded-pill">Ver</a></td>
+          </tr>
+          {% else %}
+          <tr><td colspan="7" class="text-center py-4 text-muted">Sin mensajes.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
   </div>
 </div>
