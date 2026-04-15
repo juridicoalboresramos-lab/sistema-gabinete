@@ -30,19 +30,34 @@ app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
 
 
-# -------------------------
-# Database helpers
-# -------------------------
 def get_db():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
 
 
+def now_iso():
+    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+
+def today_str():
+    return date.today().isoformat()
+
+
+def allowed_file(filename):
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+def ensure_column(conn, table, column, definition):
+    cols = [r["name"] for r in conn.execute(f"PRAGMA table_info({table})").fetchall()]
+    if column not in cols:
+        conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
+        conn.commit()
+
+
 def init_db():
     conn = get_db()
     cur = conn.cursor()
-
     cur.executescript(
         """
         PRAGMA foreign_keys = ON;
@@ -107,10 +122,36 @@ def init_db():
             FOREIGN KEY (activity_id) REFERENCES activities(id) ON DELETE CASCADE,
             FOREIGN KEY (user_id) REFERENCES users(id)
         );
+
+        CREATE TABLE IF NOT EXISTS messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sender_id INTEGER NOT NULL,
+            recipient_id INTEGER NOT NULL,
+            subject TEXT NOT NULL,
+            body TEXT NOT NULL,
+            activity_id INTEGER,
+            is_read INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY (sender_id) REFERENCES users(id),
+            FOREIGN KEY (recipient_id) REFERENCES users(id),
+            FOREIGN KEY (activity_id) REFERENCES activities(id) ON DELETE SET NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS message_files (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            message_id INTEGER NOT NULL,
+            user_id INTEGER NOT NULL,
+            original_name TEXT NOT NULL,
+            stored_name TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY (message_id) REFERENCES messages(id) ON DELETE CASCADE,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        );
         """
     )
-
     conn.commit()
+
+    ensure_column(conn, "activities", "observations", "TEXT")
 
     direction_count = cur.execute("SELECT COUNT(*) AS total FROM directions").fetchone()["total"]
     if direction_count == 0:
@@ -128,51 +169,27 @@ def init_db():
 
     user_count = cur.execute("SELECT COUNT(*) AS total FROM users").fetchone()["total"]
     if user_count == 0:
-        gabinete_id = cur.execute(
-            "SELECT id FROM directions WHERE name = ?", ("Coordinación de Gabinete",)
-        ).fetchone()["id"]
-        servicios_id = cur.execute(
-            "SELECT id FROM directions WHERE name = ?", ("Servicios Públicos",)
-        ).fetchone()["id"]
-        obras_id = cur.execute(
-            "SELECT id FROM directions WHERE name = ?", ("Obras Públicas",)
-        ).fetchone()["id"]
+        gabinete_id = cur.execute("SELECT id FROM directions WHERE name = ?", ("Coordinación de Gabinete",)).fetchone()["id"]
+        servicios_id = cur.execute("SELECT id FROM directions WHERE name = ?", ("Servicios Públicos",)).fetchone()["id"]
+        obras_id = cur.execute("SELECT id FROM directions WHERE name = ?", ("Obras Públicas",)).fetchone()["id"]
 
         users = [
-            (
-                "Administrador General",
-                "admin",
-                generate_password_hash("admin123"),
-                "admin",
-                gabinete_id,
-                1,
-                now_iso(),
-            ),
-            (
-                "Usuario Servicios Públicos",
-                "servicios",
-                generate_password_hash("servicios123"),
-                "direction",
-                servicios_id,
-                1,
-                now_iso(),
-            ),
-            (
-                "Usuario Obras Públicas",
-                "obras",
-                generate_password_hash("obras123"),
-                "direction",
-                obras_id,
-                1,
-                now_iso(),
-            ),
+            ("Administrador General", "admin", generate_password_hash("admin123"), "admin", gabinete_id, 1, now_iso()),
+            ("Usuario Servicios Públicos", "servicios", generate_password_hash("servicios123"), "direction", servicios_id, 1, now_iso()),
+            ("Usuario Obras Públicas", "obras", generate_password_hash("obras123"), "direction", obras_id, 1, now_iso()),
         ]
         cur.executemany(
-            """
-            INSERT INTO users(full_name, username, password_hash, role, direction_id, active, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            """,
+            "INSERT INTO users(full_name, username, password_hash, role, direction_id, active, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
             users,
+        )
+        conn.commit()
+
+    # repair admin if bad plaintext row exists
+    admin = cur.execute("SELECT * FROM users WHERE username='admin'").fetchone()
+    if admin and not str(admin["password_hash"]).startswith("pbkdf2:") and not str(admin["password_hash"]).startswith("scrypt:"):
+        cur.execute(
+            "UPDATE users SET full_name=?, password_hash=?, role=?, active=1 WHERE username='admin'",
+            ("Administrador General", generate_password_hash("admin123"), "admin"),
         )
         conn.commit()
 
@@ -184,34 +201,16 @@ def init_db():
         today = date.today()
         samples = [
             (
-                "CG-001",
-                "Entrega de informe semanal",
+                "CG-001", "Entrega de informe semanal",
                 "Remitir informe semanal de avances operativos y administrativos.",
-                servicios_id,
-                admin_id,
-                today.isoformat(),
-                (today + timedelta(days=5)).isoformat(),
-                "Alta",
-                "En proceso",
-                40,
-                "Pendiente complementar evidencia fotográfica.",
-                now_iso(),
-                now_iso(),
+                servicios_id, admin_id, today.isoformat(), (today + timedelta(days=5)).isoformat(),
+                "Alta", "En proceso", 40, "Pendiente complementar evidencia fotográfica.", now_iso(), now_iso(),
             ),
             (
-                "CG-002",
-                "Revisión de obra prioritaria",
+                "CG-002", "Revisión de obra prioritaria",
                 "Actualizar estatus de obra pública prioritaria del trimestre.",
-                obras_id,
-                admin_id,
-                today.isoformat(),
-                (today + timedelta(days=2)).isoformat(),
-                "Media",
-                "Pendiente",
-                0,
-                "Esperando primer reporte.",
-                now_iso(),
-                now_iso(),
+                obras_id, admin_id, today.isoformat(), (today + timedelta(days=2)).isoformat(),
+                "Media", "Pendiente", 0, "Esperando primer reporte.", now_iso(), now_iso(),
             ),
         ]
         cur.executemany(
@@ -228,21 +227,6 @@ def init_db():
     conn.close()
 
 
-def now_iso():
-    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-
-def today_str():
-    return date.today().isoformat()
-
-
-def allowed_file(filename):
-    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
-
-
-# -------------------------
-# Auth helpers
-# -------------------------
 def login_required(view):
     @wraps(view)
     def wrapped(*args, **kwargs):
@@ -250,7 +234,6 @@ def login_required(view):
             flash("Debes iniciar sesión.", "warning")
             return redirect(url_for("login"))
         return view(*args, **kwargs)
-
     return wrapped
 
 
@@ -260,7 +243,6 @@ def admin_required(view):
         if session.get("role") != "admin":
             abort(403)
         return view(*args, **kwargs)
-
     return wrapped
 
 
@@ -281,20 +263,6 @@ def current_user():
     return user
 
 
-# -------------------------
-# Business helpers
-# -------------------------
-def status_color(activity):
-    remaining = days_remaining(activity["due_date"])
-    if activity["status"] == "Concluida":
-        return "success"
-    if remaining < 0:
-        return "danger"
-    if remaining <= 3:
-        return "warning"
-    return "primary"
-
-
 def days_remaining(due_date_str):
     due = datetime.strptime(due_date_str, "%Y-%m-%d").date()
     return (due - date.today()).days
@@ -310,15 +278,26 @@ def normalize_activity_status(progress, due_date_str):
     return "Pendiente"
 
 
+def status_color(activity):
+    status = activity["status"] if "status" in activity.keys() else activity.get("status")
+    remaining = days_remaining(activity["due_date"]) if activity["due_date"] else 999
+    if status == "Concluida":
+        return "success"
+    if status == "Vencida" or remaining < 0:
+        return "danger"
+    if status == "En proceso":
+        return "primary"
+    if remaining <= 3:
+        return "warning"
+    return "secondary"
+
+
 def refresh_overdue_statuses():
     conn = get_db()
     rows = conn.execute("SELECT id, progress, due_date FROM activities").fetchall()
     for row in rows:
         status = normalize_activity_status(row["progress"], row["due_date"])
-        conn.execute(
-            "UPDATE activities SET status = ?, updated_at = ? WHERE id = ?",
-            (status, now_iso(), row["id"]),
-        )
+        conn.execute("UPDATE activities SET status = ?, updated_at = ? WHERE id = ?", (status, now_iso(), row["id"]))
     conn.commit()
     conn.close()
 
@@ -332,43 +311,27 @@ def get_dashboard_counts(direction_id=None):
         params.append(direction_id)
 
     total = conn.execute(f"SELECT COUNT(*) AS c FROM activities {where}", params).fetchone()["c"]
-    pending = conn.execute(
-        f"SELECT COUNT(*) AS c FROM activities {where} {'AND' if where else 'WHERE'} status = 'Pendiente'",
-        params,
-    ).fetchone()["c"]
-    in_progress = conn.execute(
-        f"SELECT COUNT(*) AS c FROM activities {where} {'AND' if where else 'WHERE'} status = 'En proceso'",
-        params,
-    ).fetchone()["c"]
-    done = conn.execute(
-        f"SELECT COUNT(*) AS c FROM activities {where} {'AND' if where else 'WHERE'} status = 'Concluida'",
-        params,
-    ).fetchone()["c"]
-    overdue = conn.execute(
-        f"SELECT COUNT(*) AS c FROM activities {where} {'AND' if where else 'WHERE'} status = 'Vencida'",
-        params,
-    ).fetchone()["c"]
+    pending = conn.execute(f"SELECT COUNT(*) AS c FROM activities {where} {'AND' if where else 'WHERE'} status = 'Pendiente'", params).fetchone()["c"]
+    in_progress = conn.execute(f"SELECT COUNT(*) AS c FROM activities {where} {'AND' if where else 'WHERE'} status = 'En proceso'", params).fetchone()["c"]
+    done = conn.execute(f"SELECT COUNT(*) AS c FROM activities {where} {'AND' if where else 'WHERE'} status = 'Concluida'", params).fetchone()["c"]
+    overdue = conn.execute(f"SELECT COUNT(*) AS c FROM activities {where} {'AND' if where else 'WHERE'} status = 'Vencida'", params).fetchone()["c"]
     conn.close()
-    return {
-        "total": total,
-        "pending": pending,
-        "in_progress": in_progress,
-        "done": done,
-        "overdue": overdue,
-    }
+    return {"total": total, "pending": pending, "in_progress": in_progress, "done": done, "overdue": overdue}
 
 
 @app.context_processor
 def inject_globals():
-    return {
-        "session": session,
-        "current_year": datetime.now().year,
-    }
+    unread_messages = 0
+    if session.get("user_id"):
+        conn = get_db()
+        unread_messages = conn.execute(
+            "SELECT COUNT(*) AS c FROM messages WHERE recipient_id = ? AND is_read = 0",
+            (session["user_id"],),
+        ).fetchone()["c"]
+        conn.close()
+    return {"session": session, "current_year": datetime.now().year, "unread_messages": unread_messages}
 
 
-# -------------------------
-# Routes
-# -------------------------
 @app.route("/")
 def index():
     if session.get("user_id"):
@@ -408,6 +371,7 @@ def dashboard():
     refresh_overdue_statuses()
     user = current_user()
     conn = get_db()
+
     if session.get("role") == "admin":
         activities = conn.execute(
             """
@@ -418,41 +382,24 @@ def dashboard():
             LIMIT 12
             """
         ).fetchall()
-        directions = conn.execute(
-            "SELECT id, name FROM directions ORDER BY name"
-        ).fetchall()
+        directions = conn.execute("SELECT id, name FROM directions ORDER BY name").fetchall()
         counts = get_dashboard_counts()
         conn.close()
-        return render_template(
-            "dashboard_admin.html",
-            user=user,
-            activities=activities,
-            directions=directions,
-            counts=counts,
-            days_remaining=days_remaining,
-            status_color=status_color,
-        )
-    else:
-        activities = conn.execute(
-            """
-            SELECT a.*, d.name AS direction_name
-            FROM activities a
-            JOIN directions d ON d.id = a.direction_id
-            WHERE a.direction_id = ?
-            ORDER BY a.due_date ASC, a.id DESC
-            """,
-            (session.get("direction_id"),),
-        ).fetchall()
-        counts = get_dashboard_counts(session.get("direction_id"))
-        conn.close()
-        return render_template(
-            "dashboard_direction.html",
-            user=user,
-            activities=activities,
-            counts=counts,
-            days_remaining=days_remaining,
-            status_color=status_color,
-        )
+        return render_template("dashboard_admin.html", user=user, activities=activities, directions=directions, counts=counts, days_remaining=days_remaining, status_color=status_color)
+
+    activities = conn.execute(
+        """
+        SELECT a.*, d.name AS direction_name
+        FROM activities a
+        JOIN directions d ON d.id = a.direction_id
+        WHERE a.direction_id = ?
+        ORDER BY a.due_date ASC, a.id DESC
+        """,
+        (session.get("direction_id"),),
+    ).fetchall()
+    counts = get_dashboard_counts(session.get("direction_id"))
+    conn.close()
+    return render_template("dashboard_direction.html", user=user, activities=activities, counts=counts, days_remaining=days_remaining, status_color=status_color)
 
 
 @app.route("/activities/new", methods=["GET", "POST"])
@@ -486,19 +433,8 @@ def activity_new():
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
-                    folio,
-                    title,
-                    description,
-                    int(direction_id),
-                    session["user_id"],
-                    assigned_date,
-                    due_date,
-                    priority,
-                    status,
-                    progress,
-                    observations,
-                    now_iso(),
-                    now_iso(),
+                    folio, title, description, int(direction_id), session["user_id"], assigned_date, due_date,
+                    priority, status, progress, observations, now_iso(), now_iso(),
                 ),
             )
             conn.commit()
@@ -591,14 +527,19 @@ def activity_detail(activity_id):
     ).fetchall()
     conn.close()
 
-    return render_template(
-        "activity_detail.html",
-        activity=activity,
-        updates=updates,
-        files=files,
-        days_remaining=days_remaining,
-        status_color=status_color,
-    )
+    return render_template("activity_detail.html", activity=activity, updates=updates, files=files, days_remaining=days_remaining, status_color=status_color)
+
+
+@app.route("/activities/<int:activity_id>/delete", methods=["POST"])
+@login_required
+@admin_required
+def activity_delete(activity_id):
+    conn = get_db()
+    conn.execute("DELETE FROM activities WHERE id = ?", (activity_id,))
+    conn.commit()
+    conn.close()
+    flash("Actividad eliminada correctamente.", "success")
+    return redirect(url_for("dashboard"))
 
 
 @app.route("/users", methods=["GET", "POST"])
@@ -624,12 +565,8 @@ def users():
                     VALUES (?, ?, ?, ?, ?, 1, ?)
                     """,
                     (
-                        full_name,
-                        username,
-                        generate_password_hash(password),
-                        role,
-                        int(direction_id) if direction_id else None,
-                        now_iso(),
+                        full_name, username, generate_password_hash(password), role,
+                        int(direction_id) if direction_id else None, now_iso(),
                     ),
                 )
                 conn.commit()
@@ -683,30 +620,204 @@ def directions():
 def reports():
     refresh_overdue_statuses()
     conn = get_db()
+    selected_direction = request.args.get("direction_id", "").strip()
+    directions_list = []
+    params = []
+    query = """
+        SELECT a.*, d.name AS direction_name
+        FROM activities a
+        JOIN directions d ON d.id = a.direction_id
+        WHERE 1=1
+    """
     if session.get("role") == "admin":
-        rows = conn.execute(
-            """
-            SELECT a.*, d.name AS direction_name
-            FROM activities a
-            JOIN directions d ON d.id = a.direction_id
-            ORDER BY d.name, a.due_date
-            """
-        ).fetchall()
+        directions_list = conn.execute("SELECT id, name FROM directions ORDER BY name").fetchall()
+        if selected_direction:
+            query += " AND a.direction_id = ?"
+            params.append(int(selected_direction))
     else:
-        rows = conn.execute(
-            """
-            SELECT a.*, d.name AS direction_name
-            FROM activities a
-            JOIN directions d ON d.id = a.direction_id
-            WHERE a.direction_id = ?
-            ORDER BY a.due_date
-            """,
-            (session.get("direction_id"),),
-        ).fetchall()
+        query += " AND a.direction_id = ?"
+        params.append(session.get("direction_id"))
+
+    query += " ORDER BY d.name ASC, a.due_date ASC, a.id DESC"
+    rows = conn.execute(query, params).fetchall()
     conn.close()
-    return render_template(
-        "reports.html", rows=rows, days_remaining=days_remaining, status_color=status_color
-    )
+    return render_template("reports.html", rows=rows, directions=directions_list, selected_direction=selected_direction, days_remaining=days_remaining, status_color=status_color)
+
+
+@app.route("/messages")
+@login_required
+def messages():
+    conn = get_db()
+    inbox = conn.execute(
+        """
+        SELECT m.*, su.full_name AS sender_name, ru.full_name AS recipient_name, a.folio AS activity_folio
+        FROM messages m
+        JOIN users su ON su.id = m.sender_id
+        JOIN users ru ON ru.id = m.recipient_id
+        LEFT JOIN activities a ON a.id = m.activity_id
+        WHERE m.recipient_id = ?
+        ORDER BY m.id DESC
+        """,
+        (session["user_id"],),
+    ).fetchall()
+    sent = conn.execute(
+        """
+        SELECT m.*, su.full_name AS sender_name, ru.full_name AS recipient_name, a.folio AS activity_folio
+        FROM messages m
+        JOIN users su ON su.id = m.sender_id
+        JOIN users ru ON ru.id = m.recipient_id
+        LEFT JOIN activities a ON a.id = m.activity_id
+        WHERE m.sender_id = ?
+        ORDER BY m.id DESC
+        """,
+        (session["user_id"],),
+    ).fetchall()
+    conn.close()
+    return render_template("messages.html", inbox=inbox, sent=sent)
+
+
+@app.route("/messages/new", methods=["GET", "POST"])
+@login_required
+def message_new():
+    conn = get_db()
+    activities = []
+    if session.get("role") == "admin":
+        recipients = conn.execute(
+            """
+            SELECT id, full_name, username FROM users
+            WHERE active = 1 AND id != ?
+            ORDER BY full_name
+            """,
+            (session["user_id"],),
+        ).fetchall()
+        activities = conn.execute("SELECT id, folio, title FROM activities ORDER BY id DESC").fetchall()
+    else:
+        recipients = conn.execute(
+            """
+            SELECT id, full_name, username FROM users
+            WHERE active = 1 AND role = 'admin'
+            ORDER BY full_name
+            """
+        ).fetchall()
+
+    if request.method == "POST":
+        recipient_id = request.form.get("recipient_id")
+        subject = request.form.get("subject", "").strip()
+        body = request.form.get("body", "").strip()
+        activity_id = request.form.get("activity_id") or None
+        uploaded = request.files.get("file")
+
+        if not all([recipient_id, subject, body]):
+            flash("Completa destinatario, asunto y mensaje.", "danger")
+            conn.close()
+            return render_template("message_new.html", recipients=recipients, activities=activities)
+
+        cur = conn.execute(
+            "INSERT INTO messages(sender_id, recipient_id, subject, body, activity_id, is_read, created_at) VALUES (?, ?, ?, ?, ?, 0, ?)",
+            (session["user_id"], int(recipient_id), subject, body, int(activity_id) if activity_id else None, now_iso()),
+        )
+        message_id = cur.lastrowid
+
+        if uploaded and uploaded.filename:
+            if not allowed_file(uploaded.filename):
+                flash("Archivo no permitido.", "danger")
+                conn.rollback()
+                conn.close()
+                return render_template("message_new.html", recipients=recipients, activities=activities)
+            ext = uploaded.filename.rsplit(".", 1)[1].lower()
+            original_name = secure_filename(uploaded.filename)
+            stored_name = f"msg_{uuid4().hex}.{ext}"
+            uploaded.save(os.path.join(app.config["UPLOAD_FOLDER"], stored_name))
+            conn.execute(
+                "INSERT INTO message_files(message_id, user_id, original_name, stored_name, created_at) VALUES (?, ?, ?, ?, ?)",
+                (message_id, session["user_id"], original_name, stored_name, now_iso()),
+            )
+
+        conn.commit()
+        conn.close()
+        flash("Mensaje enviado correctamente.", "success")
+        return redirect(url_for("messages"))
+
+    conn.close()
+    return render_template("message_new.html", recipients=recipients, activities=activities)
+
+
+@app.route("/messages/<int:message_id>", methods=["GET", "POST"])
+@login_required
+def message_detail(message_id):
+    conn = get_db()
+    message = conn.execute(
+        """
+        SELECT m.*, su.full_name AS sender_name, ru.full_name AS recipient_name, a.folio AS activity_folio, a.title AS activity_title
+        FROM messages m
+        JOIN users su ON su.id = m.sender_id
+        JOIN users ru ON ru.id = m.recipient_id
+        LEFT JOIN activities a ON a.id = m.activity_id
+        WHERE m.id = ?
+        """,
+        (message_id,),
+    ).fetchone()
+
+    if not message:
+        conn.close()
+        abort(404)
+
+    if session["user_id"] not in (message["sender_id"], message["recipient_id"]):
+        conn.close()
+        abort(403)
+
+    if message["recipient_id"] == session["user_id"] and not message["is_read"]:
+        conn.execute("UPDATE messages SET is_read = 1 WHERE id = ?", (message_id,))
+        conn.commit()
+
+    attachments = conn.execute(
+        "SELECT * FROM message_files WHERE message_id = ? ORDER BY id DESC",
+        (message_id,),
+    ).fetchall()
+
+    if request.method == "POST":
+        body = request.form.get("body", "").strip()
+        uploaded = request.files.get("file")
+        if not body:
+            flash("La respuesta no puede ir vacía.", "danger")
+            conn.close()
+            return render_template("message_detail.html", message=message, attachments=attachments)
+
+        cur = conn.execute(
+            "INSERT INTO messages(sender_id, recipient_id, subject, body, activity_id, is_read, created_at) VALUES (?, ?, ?, ?, ?, 0, ?)",
+            (
+                session["user_id"],
+                message["sender_id"] if session["user_id"] == message["recipient_id"] else message["recipient_id"],
+                f"Re: {message['subject']}",
+                body,
+                message["activity_id"],
+                now_iso(),
+            ),
+        )
+        new_message_id = cur.lastrowid
+
+        if uploaded and uploaded.filename:
+            if not allowed_file(uploaded.filename):
+                flash("Archivo no permitido.", "danger")
+                conn.rollback()
+                conn.close()
+                return render_template("message_detail.html", message=message, attachments=attachments)
+            ext = uploaded.filename.rsplit(".", 1)[1].lower()
+            original_name = secure_filename(uploaded.filename)
+            stored_name = f"msg_{uuid4().hex}.{ext}"
+            uploaded.save(os.path.join(app.config["UPLOAD_FOLDER"], stored_name))
+            conn.execute(
+                "INSERT INTO message_files(message_id, user_id, original_name, stored_name, created_at) VALUES (?, ?, ?, ?, ?)",
+                (new_message_id, session["user_id"], original_name, stored_name, now_iso()),
+            )
+
+        conn.commit()
+        conn.close()
+        flash("Respuesta enviada correctamente.", "success")
+        return redirect(url_for("messages"))
+
+    conn.close()
+    return render_template("message_detail.html", message=message, attachments=attachments)
 
 
 @app.route("/dashboard-data")
@@ -724,9 +835,7 @@ def dashboard_data():
             ORDER BY d.name
             """
         ).fetchall()
-        status_counts = conn.execute(
-            "SELECT status AS label, COUNT(*) AS value FROM activities GROUP BY status ORDER BY status"
-        ).fetchall()
+        status_counts = conn.execute("SELECT status AS label, COUNT(*) AS value FROM activities GROUP BY status ORDER BY status").fetchall()
     else:
         progress_by_direction = conn.execute(
             """
@@ -749,13 +858,7 @@ def dashboard_data():
             (session.get("direction_id"),),
         ).fetchall()
     conn.close()
-
-    return jsonify(
-        {
-            "progress": [dict(r) for r in progress_by_direction],
-            "statuses": [dict(r) for r in status_counts],
-        }
-    )
+    return jsonify({"progress": [dict(r) for r in progress_by_direction], "statuses": [dict(r) for r in status_counts]})
 
 
 @app.route("/uploads/<path:filename>")
@@ -773,29 +876,9 @@ def forbidden(_):
 def not_found(_):
     return render_template("error.html", code=404, message="No encontramos lo que buscas."), 404
 
-import os
-import sqlite3
 
 if __name__ == "__main__":
     os.makedirs(UPLOAD_FOLDER, exist_ok=True)
     init_db()
-
-    conn = sqlite3.connect("database.db")
-    conn.row_factory = sqlite3.Row
-
-    user = conn.execute(
-        "SELECT * FROM users WHERE username = ?",
-        ("admin",)
-    ).fetchone()
-
-    if not user:
-        conn.execute(
-            "INSERT INTO users (username, password, role) VALUES (?, ?, ?)",
-            ("admin", "admin123", "admin")
-        )
-        conn.commit()
-
-    conn.close()
-
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)

@@ -65,3 +65,13 @@ Sustituye estos archivos por los oficiales del Ayuntamiento:
 - Los archivos subidos se guardan en `static/uploads`
 - Antes de usarlo en producción conviene cambiar la `SECRET_KEY` en `app.py`
 - Para un uso institucional real posterior, lo ideal sería migrarlo a PostgreSQL y servidor en línea
+
+
+
+## Adecuaciones incluidas en esta versión
+- Reportes con filtro por dirección para administrador y ordenados por dirección.
+- Mensajería interna institucional con recibidos, enviados, detalle y respuesta.
+- Contador de mensajes no leídos en la barra superior.
+- Solo el administrador puede eliminar actividades.
+- Botón para enviar mensaje desde el detalle de actividad.
+- Bloque final de arranque corregido para Railway.

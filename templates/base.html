@@ -28,7 +28,15 @@
           <li class="nav-item"><a class="nav-link" href="{{ url_for('directions') }}">Direcciones</a></li>
           {% endif %}
           <li class="nav-item"><a class="nav-link" href="{{ url_for('reports') }}">Reportes</a></li>
-          <li class="nav-item text-white-50 small px-lg-2">{{ session.full_name }}</li>
+          <li class="nav-item">
+            <a class="nav-link position-relative" href="{{ url_for('messages') }}">
+              Mensajes
+              {% if unread_messages %}
+              <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">{{ unread_messages }}</span>
+              {% endif %}
+            </a>
+          </li>
+          <li class="nav-item text-white-50 small px-lg-2"><i class="bi bi-person-circle me-1"></i>{{ session.full_name }}</li>
           <li class="nav-item"><a class="btn btn-light btn-sm rounded-pill px-3" href="{{ url_for('logout') }}">Salir</a></li>
         </ul>
         {% else %}

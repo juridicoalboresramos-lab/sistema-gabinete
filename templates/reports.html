@@ -10,13 +10,33 @@
       </div>
       <button class="btn btn-outline-primary rounded-pill px-4" onclick="window.print()">Imprimir / PDF</button>
     </div>
+
+    <div class="px-4 pb-3">
+      <form method="get" class="row g-3">
+        {% if session.role == 'admin' %}
+        <div class="col-md-4">
+          <label class="form-label">Filtrar por dirección</label>
+          <select name="direction_id" class="form-select rounded-3">
+            <option value="">Todas las direcciones</option>
+            {% for d in directions %}
+            <option value="{{ d.id }}" {% if selected_direction == d.id|string %}selected{% endif %}>{{ d.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endif %}
+        <div class="col-md-2 d-flex align-items-end">
+          <button class="btn btn-brand rounded-pill px-4 w-100">Filtrar</button>
+        </div>
+      </form>
+    </div>
+
     <div class="table-responsive">
       <table class="table mb-0 align-middle">
         <thead class="table-light">
           <tr>
+            <th>Dirección</th>
             <th>Folio</th>
             <th>Título</th>
-            <th>Dirección</th>
             <th>Límite</th>
             <th>Días</th>
             <th>Avance</th>
@@ -24,11 +44,18 @@
           </tr>
         </thead>
         <tbody>
+          {% set ns = namespace(current='') %}
           {% for row in rows %}
+          {% if ns.current != row.direction_name %}
+          <tr class="table-secondary">
+            <td colspan="7" class="fw-bold">{{ row.direction_name }}</td>
+          </tr>
+          {% set ns.current = row.direction_name %}
+          {% endif %}
           <tr>
+            <td>{{ row.direction_name }}</td>
             <td>{{ row.folio }}</td>
             <td>{{ row.title }}</td>
-            <td>{{ row.direction_name }}</td>
             <td>{{ row.due_date }}</td>
             <td>{{ days_remaining(row.due_date) }}</td>
             <td>{{ row.progress }}%</td>
