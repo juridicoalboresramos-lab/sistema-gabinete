@@ -47,7 +47,7 @@
         <div class="table-responsive">
           <table class="table mb-0 align-middle">
             <thead class="table-light">
-              <tr><th>Nombre</th><th>Usuario</th><th>Rol</th><th>Dirección</th><th>Activo</th></tr>
+              <tr><th>Nombre</th><th>Usuario</th><th>Rol</th><th>Dirección</th><th>Activo</th><th>Acciones</th></tr>
             </thead>
             <tbody>
               {% for user in users %}
@@ -57,9 +57,19 @@
                 <td>{{ user.role }}</td>
                 <td>{{ user.direction_name or '-' }}</td>
                 <td>{{ 'Sí' if user.active else 'No' }}</td>
+                <td>
+                  {% if session.get("role") == "admin" %}
+                  <form method="post" action="{{ url_for('delete_user', user_id=user.id) }}" style="display:inline;">
+                    <button type="submit" class="btn btn-danger btn-sm rounded-pill"
+                      onclick="return confirm('¿Eliminar este usuario?')">
+                      Eliminar
+                    </button>
+                  </form>
+                  {% endif %}
+                </td>
               </tr>
               {% else %}
-              <tr><td colspan="5" class="text-center py-4 text-muted">Sin usuarios.</td></tr>
+              <tr><td colspan="6" class="text-center py-4 text-muted">Sin usuarios.</td></tr>
               {% endfor %}
             </tbody>
           </table>
